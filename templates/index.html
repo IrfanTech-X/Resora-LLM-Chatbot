@@ -2,28 +2,200 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resora - Research Chatbot</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Resora — AI Research Assistant</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <!-- Markdown parser -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"
+        defer>
+    </script>
+
+    <!-- Sanitizer for generated HTML -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"
+        defer>
+    </script>
+
+    <script
+        src="{{ url_for('static', filename='script.js') }}"
+        defer>
+    </script>
 </head>
+
 <body>
 
-    <h1>Resora</h1>
-    <p>AI Research Assistant</p>
+    <div class="app">
 
-    <form id="chat-form">
-        <input
-            type="text"
-            id="message"
-            placeholder="Ask a research question..."
-            required
-        >
+        <!-- Header -->
+        <header class="header">
 
-        <button type="submit">Send</button>
-    </form>
+            <div class="brand">
+                <div class="brand-icon">R</div>
 
-    <div id="response"></div>
+                <div>
+                    <h1>Resora</h1>
+                    <p>AI Research Assistant</p>
+                </div>
+            </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+            <button
+                id="clear-chat"
+                class="clear-button"
+                type="button"
+                title="Clear conversation"
+            >
+                Clear Chat
+            </button>
+
+        </header>
+
+
+        <!-- Main Chat Area -->
+        <main class="chat-container">
+
+            <!-- Welcome Screen -->
+            <section id="welcome-screen" class="welcome-screen">
+
+                <div class="welcome-icon">🔬</div>
+
+                <h2>What are you researching today?</h2>
+
+                <p>
+                    Explore research topics, methodologies,
+                    NLP concepts, machine learning ideas,
+                    and more with Resora.
+                </p>
+
+
+                <!-- Example prompts -->
+                <div class="prompt-section">
+
+                    <h3>Try asking</h3>
+
+                    <div class="prompt-grid">
+
+                        <button
+                            class="prompt-card"
+                            data-prompt="What is sentiment analysis in Bangla NLP?"
+                        >
+                            <span>📝</span>
+                            <div>
+                                <strong>Bangla NLP</strong>
+                                <small>
+                                    Explore sentiment analysis in Bangla
+                                </small>
+                            </div>
+                        </button>
+
+
+                        <button
+                            class="prompt-card"
+                            data-prompt="How can transformers be used for text classification?"
+                        >
+                            <span>🧠</span>
+                            <div>
+                                <strong>Transformers</strong>
+                                <small>
+                                    Understand transformer-based classification
+                                </small>
+                            </div>
+                        </button>
+
+
+                        <button
+                            class="prompt-card"
+                            data-prompt="How should I design a research methodology for a Bangla sentiment classification study?"
+                        >
+                            <span>🔬</span>
+                            <div>
+                                <strong>Research Methodology</strong>
+                                <small>
+                                    Design an NLP research methodology
+                                </small>
+                            </div>
+                        </button>
+
+
+                        <button
+                            class="prompt-card"
+                            data-prompt="What are the main challenges in Bangla natural language processing?"
+                        >
+                            <span>📚</span>
+                            <div>
+                                <strong>Research Challenges</strong>
+                                <small>
+                                    Discover challenges in Bangla NLP
+                                </small>
+                            </div>
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- Messages -->
+            <section
+                id="messages"
+                class="messages"
+                aria-live="polite"
+            ></section>
+
+        </main>
+
+
+        <!-- Input Area -->
+        <footer class="input-area">
+
+            <form id="chat-form" class="chat-form">
+
+                <div class="input-wrapper">
+
+                    <textarea
+                        id="message"
+                        rows="1"
+                        maxlength="4000"
+                        placeholder="Ask a research question..."
+                        aria-label="Research question"
+                    ></textarea>
+
+                    <button
+                        id="send-button"
+                        type="submit"
+                        title="Send message"
+                        aria-label="Send message"
+                    >
+                        ➤
+                    </button>
+
+                </div>
+
+                <div class="input-footer">
+                    <span>
+                        Resora may generate inaccurate information.
+                        Verify important research claims.
+                    </span>
+
+                    <span id="character-count">0 / 4000</span>
+                </div>
+
+            </form>
+
+        </footer>
+
+    </div>
 
 </body>
 </html>
