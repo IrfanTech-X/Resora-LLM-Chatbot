@@ -1235,6 +1235,81 @@ textarea::placeholder {
 }
 
 
+.copyright {
+    margin-top: 12px;
+
+    text-align: center;
+
+    color: #b5b5b5;
+
+    font-size: 8px;
+
+    line-height: 1.6;
+}
+
+
+.copyright-title {
+    font-size: 8px;
+
+    color: #9ca3af;
+
+    letter-spacing: 0.04em;
+}
+
+
+.developer-name {
+    margin-top: 4px;
+
+    color: #9ca3af;
+
+    font-size: 9px;
+}
+
+
+.developer-name strong {
+    color: #6b7280;
+
+    font-weight: 600;
+}
+
+
+.social-links {
+    margin-top: 5px;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    gap: 6px;
+
+    font-size: 8px;
+}
+
+
+.social-links a {
+    color: var(--accent);
+
+    text-decoration: none;
+
+    transition: color 0.15s ease;
+}
+
+
+.social-links a:hover {
+    color: var(--accent-dark);
+
+    text-decoration: underline;
+}
+
+
+.social-links span {
+    color: #c4c4c4;
+}
+
+
+
 /* =========================================================
    ANIMATIONS
    ========================================================= */
