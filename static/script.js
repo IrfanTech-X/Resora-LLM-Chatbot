@@ -1,202 +1,667 @@
-// ============================================================================
-// Resora — chat interactions
-// Wire this up to your Flask endpoint by editing CHAT_ENDPOINT below.
-// Expects: POST { message: string } -> JSON { reply: string }
-// ============================================================================
+// =========================================================
+// DOM ELEMENTS
+// =========================================================
 
-const CHAT_ENDPOINT = '/chat';
+const chatForm =
+    document.getElementById("chat-form");
 
-const els = {
-    welcome: document.getElementById('welcome-screen'),
-    messages: document.getElementById('messages'),
-    form: document.getElementById('chat-form'),
-    textarea: document.getElementById('message'),
-    sendBtn: document.getElementById('send-button'),
-    charCount: document.getElementById('character-count'),
-    clearBtn: document.getElementById('clear-chat'),
-};
+const messageInput =
+    document.getElementById("message");
 
-let history = [];
+const messagesContainer =
+    document.getElementById("messages");
 
-// ---- textarea: auto-grow + live character count -------------------------
+const sendButton =
+    document.getElementById("send-button");
 
-function autoGrow() {
-    els.textarea.style.height = 'auto';
-    els.textarea.style.height = Math.min(els.textarea.scrollHeight, 200) + 'px';
-}
+const welcomeScreen =
+    document.getElementById("welcome-screen");
 
-function updateCharCount() {
-    const len = els.textarea.value.length;
-    els.charCount.textContent = `${len} / 4000`;
-}
+const clearChatButton =
+    document.getElementById("new-chat");
 
-els.textarea.addEventListener('input', () => {
-    autoGrow();
-    updateCharCount();
-    els.sendBtn.disabled = els.textarea.value.trim().length === 0;
-});
+const newChatTop =
+    document.getElementById("new-chat-top");
 
-els.textarea.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        els.form.requestSubmit();
-    }
-});
+const characterCount =
+    document.getElementById("character-count");
 
-// ---- rendering -------------------------------------------------------------
+const mobileMenu =
+    document.getElementById("mobile-menu");
 
-function renderMarkdown(text) {
-    if (window.marked && window.DOMPurify) {
-        const raw = marked.parse(text, { breaks: true });
-        return DOMPurify.sanitize(raw);
-    }
-    // fallback: escape + preserve line breaks
-    const escaped = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-    return `<p>${escaped.replace(/\n/g, '<br>')}</p>`;
-}
+const sidebar =
+    document.getElementById("sidebar");
 
-function appendMessage(role, text) {
-    hideWelcome();
+const sidebarOverlay =
+    document.getElementById("sidebar-overlay");
 
-    const wrap = document.createElement('div');
-    wrap.className = `message ${role}`;
 
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
+const MAX_LENGTH = 4000;
 
-    const body = document.createElement('div');
-    body.className = 'message-body';
 
-    const content = document.createElement('div');
-    content.className = 'message-content';
-    content.innerHTML = renderMarkdown(text);
-
-    body.appendChild(content);
-    wrap.appendChild(avatar);
-    wrap.appendChild(body);
-    els.messages.appendChild(wrap);
-
-    scrollToBottom();
-    return content;
-}
-
-function appendTyping() {
-    hideWelcome();
-
-    const wrap = document.createElement('div');
-    wrap.className = 'message assistant';
-    wrap.id = 'typing-indicator';
-
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-
-    const body = document.createElement('div');
-    body.className = 'message-body';
-
-    const content = document.createElement('div');
-    content.className = 'message-content';
-    content.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-
-    body.appendChild(content);
-    wrap.appendChild(avatar);
-    wrap.appendChild(body);
-    els.messages.appendChild(wrap);
-
-    scrollToBottom();
-}
-
-function removeTyping() {
-    const el = document.getElementById('typing-indicator');
-    if (el) el.remove();
-}
-
-function hideWelcome() {
-    if (els.welcome && !els.welcome.hidden) {
-        els.welcome.hidden = true;
-    }
-}
+// =========================================================
+// SCROLL
+// =========================================================
 
 function scrollToBottom() {
-    const container = document.querySelector('.chat-container');
-    container.scrollTop = container.scrollHeight;
+
+    const contentArea =
+        document.querySelector(".content-area");
+
+
+    contentArea.scrollTo({
+
+        top: contentArea.scrollHeight,
+
+        behavior: "smooth"
+
+    });
 }
 
-// ---- sending -----------------------------------------------------------
 
-async function sendMessage(text) {
-    appendMessage('user', text);
-    history.push({ role: 'user', content: text });
+// =========================================================
+// CHARACTER COUNT
+// =========================================================
 
-    els.sendBtn.disabled = true;
-    appendTyping();
+function updateCharacterCount() {
 
-    try {
-        const res = await fetch(CHAT_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text, history }),
-        });
+    characterCount.textContent =
+        `${messageInput.value.length} / ${MAX_LENGTH}`;
+}
 
-        if (!res.ok) throw new Error(`Request failed (${res.status})`);
 
-        const data = await res.json();
-        const reply = data.reply ?? data.response ?? data.message ?? 'Sorry, I could not generate a response.';
+// =========================================================
+// WELCOME SCREEN
+// =========================================================
 
-        removeTyping();
-        appendMessage('assistant', reply);
-        history.push({ role: 'assistant', content: reply });
-    } catch (err) {
-        removeTyping();
-        appendMessage(
-            'assistant',
-            `⚠️ Couldn't reach Resora's backend (\`${CHAT_ENDPOINT}\`). ${err.message}`
+function hideWelcome() {
+
+    welcomeScreen.style.display =
+        "none";
+}
+
+
+function showWelcome() {
+
+    welcomeScreen.style.display =
+        "block";
+}
+
+
+// =========================================================
+// MOBILE SIDEBAR
+// =========================================================
+
+function closeMobileSidebar() {
+
+    sidebar.classList.remove(
+        "open"
+    );
+
+    sidebarOverlay.classList.remove(
+        "show"
+    );
+}
+
+
+// =========================================================
+// ADD CHAT MESSAGE
+// =========================================================
+
+function addMessage(
+    role,
+    content
+) {
+
+    const messageElement =
+        document.createElement(
+            "article"
         );
-    } finally {
-        els.sendBtn.disabled = els.textarea.value.trim().length === 0;
+
+
+    messageElement.className =
+        `message ${role}`;
+
+
+    // -----------------------------------------------------
+    // Label
+    // -----------------------------------------------------
+
+    const label =
+        document.createElement(
+            "div"
+        );
+
+
+    label.className =
+        "message-label";
+
+
+    label.textContent =
+        role === "user"
+            ? "You"
+            : "Resora";
+
+
+    // -----------------------------------------------------
+    // Message content
+    // -----------------------------------------------------
+
+    const contentElement =
+        document.createElement(
+            "div"
+        );
+
+
+    contentElement.className =
+        "message-content";
+
+
+    // -----------------------------------------------------
+    // Assistant Markdown
+    // -----------------------------------------------------
+
+    if (role === "assistant") {
+
+        if (
+            typeof marked !== "undefined" &&
+            typeof DOMPurify !== "undefined"
+        ) {
+
+            const html =
+                marked.parse(content);
+
+
+            contentElement.innerHTML =
+                DOMPurify.sanitize(
+                    html
+                );
+
+        } else {
+
+            contentElement.textContent =
+                content;
+        }
+
+    }
+
+    // -----------------------------------------------------
+    // User message
+    // -----------------------------------------------------
+
+    else {
+
+        contentElement.textContent =
+            content;
+    }
+
+
+    // -----------------------------------------------------
+    // Assemble message
+    // -----------------------------------------------------
+
+    messageElement.appendChild(
+        label
+    );
+
+
+    messageElement.appendChild(
+        contentElement
+    );
+
+
+    messagesContainer.appendChild(
+        messageElement
+    );
+
+
+    scrollToBottom();
+}
+
+
+// =========================================================
+// LOADING INDICATOR
+// =========================================================
+
+function showLoading() {
+
+    const loading =
+        document.createElement(
+            "article"
+        );
+
+
+    loading.id =
+        "loading-message";
+
+
+    loading.className =
+        "message assistant";
+
+
+    loading.innerHTML = `
+
+        <div class="message-label">
+            Resora
+        </div>
+
+
+        <div class="message-content">
+
+            <div class="typing-indicator">
+
+                <span class="typing-dot"></span>
+
+                <span class="typing-dot"></span>
+
+                <span class="typing-dot"></span>
+
+            </div>
+
+        </div>
+
+    `;
+
+
+    messagesContainer.appendChild(
+        loading
+    );
+
+
+    scrollToBottom();
+}
+
+
+function removeLoading() {
+
+    const loading =
+        document.getElementById(
+            "loading-message"
+        );
+
+
+    if (loading) {
+
+        loading.remove();
     }
 }
 
-els.form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const text = els.textarea.value.trim();
-    if (!text) return;
 
-    els.textarea.value = '';
-    autoGrow();
-    updateCharCount();
-    sendMessage(text);
-});
+// =========================================================
+// SEND MESSAGE
+// =========================================================
 
-// ---- prompt cards --------------------------------------------------------
+async function sendMessage(
+    message
+) {
 
-document.querySelectorAll('.prompt-card').forEach((card) => {
-    card.addEventListener('click', () => {
-        const prompt = card.dataset.prompt;
-        if (!prompt) return;
-        els.textarea.value = prompt;
-        autoGrow();
-        updateCharCount();
-        els.sendBtn.disabled = false;
-        els.form.requestSubmit();
-    });
-});
+    if (
+        !message ||
+        sendButton.disabled
+    ) {
 
-// ---- clear chat ----------------------------------------------------------
+        return;
+    }
 
-els.clearBtn.addEventListener('click', () => {
-    els.messages.innerHTML = '';
-    history = [];
-    els.welcome.hidden = false;
-    els.textarea.value = '';
-    autoGrow();
-    updateCharCount();
-    els.sendBtn.disabled = true;
-});
 
-// ---- init ------------------------------------------------------------------
+    // Hide welcome
+    hideWelcome();
 
-updateCharCount();
-els.sendBtn.disabled = true;
+
+    // Display user message
+    addMessage(
+        "user",
+        message
+    );
+
+
+    // Reset input
+    messageInput.value = "";
+
+
+    updateCharacterCount();
+
+
+    messageInput.style.height =
+        "auto";
+
+
+    // Disable send button
+    sendButton.disabled =
+        true;
+
+
+    // Show loading
+    showLoading();
+
+
+    try {
+
+        // -------------------------------------------------
+        // Send request to Flask
+        // -------------------------------------------------
+
+        const response =
+            await fetch(
+                "/chat",
+                {
+
+                    method: "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json"
+
+                    },
+
+                    body: JSON.stringify({
+
+                        message:
+                            message
+
+                    })
+
+                }
+            );
+
+
+        // -------------------------------------------------
+        // Parse response
+        // -------------------------------------------------
+
+        const data =
+            await response.json();
+
+
+        // Remove loading
+        removeLoading();
+
+
+        // -------------------------------------------------
+        // Handle API error
+        // -------------------------------------------------
+
+        if (!response.ok) {
+
+            addMessage(
+                "assistant",
+                data.error ||
+                "Something went wrong."
+            );
+
+            return;
+        }
+
+
+        // -------------------------------------------------
+        // Display response
+        // -------------------------------------------------
+
+        addMessage(
+            "assistant",
+            data.response
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Resora request error:",
+            error
+        );
+
+
+        removeLoading();
+
+
+        addMessage(
+            "assistant",
+            "I couldn't connect to the Resora server. Please make sure Flask is running and try again."
+        );
+
+
+    } finally {
+
+        sendButton.disabled =
+            false;
+
+
+        messageInput.focus();
+    }
+}
+
+
+// =========================================================
+// FORM SUBMISSION
+// =========================================================
+
+chatForm.addEventListener(
+    "submit",
+    async (event) => {
+
+        event.preventDefault();
+
+
+        const message =
+            messageInput.value.trim();
+
+
+        if (!message) {
+
+            return;
+        }
+
+
+        await sendMessage(
+            message
+        );
+    }
+);
+
+
+// =========================================================
+// ENTER / SHIFT+ENTER
+// =========================================================
+
+messageInput.addEventListener(
+    "keydown",
+    (event) => {
+
+        // Enter sends
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+
+            event.preventDefault();
+
+
+            chatForm.requestSubmit();
+        }
+    }
+);
+
+
+// =========================================================
+// TEXTAREA AUTO RESIZE
+// =========================================================
+
+messageInput.addEventListener(
+    "input",
+    () => {
+
+        messageInput.style.height =
+            "auto";
+
+
+        messageInput.style.height =
+            Math.min(
+                messageInput.scrollHeight,
+                150
+            ) + "px";
+
+
+        updateCharacterCount();
+    }
+);
+
+
+// =========================================================
+// RESEARCH CARDS
+// =========================================================
+
+document
+    .querySelectorAll(
+        ".research-card"
+    )
+    .forEach(
+        (card) => {
+
+            card.addEventListener(
+                "click",
+                () => {
+
+                    const prompt =
+                        card.dataset.prompt;
+
+
+                    messageInput.value =
+                        prompt;
+
+
+                    updateCharacterCount();
+
+
+                    messageInput.focus();
+
+
+                    chatForm.requestSubmit();
+                }
+            );
+        }
+    );
+
+
+// =========================================================
+// NEW CHAT FUNCTION
+// =========================================================
+
+function startNewChat() {
+
+    messagesContainer.innerHTML =
+        "";
+
+
+    showWelcome();
+
+
+    messageInput.value =
+        "";
+
+
+    updateCharacterCount();
+
+
+    messageInput.style.height =
+        "auto";
+
+
+    messageInput.focus();
+}
+
+
+// =========================================================
+// NEW CHAT BUTTONS
+// =========================================================
+
+clearChatButton.addEventListener(
+    "click",
+    startNewChat
+);
+
+
+if (newChatTop) {
+
+    newChatTop.addEventListener(
+        "click",
+        startNewChat
+    );
+}
+
+
+// =========================================================
+// MOBILE MENU
+// =========================================================
+
+mobileMenu.addEventListener(
+    "click",
+    () => {
+
+        sidebar.classList.add(
+            "open"
+        );
+
+
+        sidebarOverlay.classList.add(
+            "show"
+        );
+    }
+);
+
+
+sidebarOverlay.addEventListener(
+    "click",
+    closeMobileSidebar
+);
+
+
+// =========================================================
+// SIDEBAR WORKSPACE BUTTONS
+// =========================================================
+
+document
+    .querySelectorAll(
+        ".side-item"
+    )
+    .forEach(
+        (item) => {
+
+            item.addEventListener(
+                "click",
+                () => {
+
+                    document
+                        .querySelectorAll(
+                            ".side-item"
+                        )
+                        .forEach(
+                            (other) => {
+
+                                other.classList.remove(
+                                    "active"
+                                );
+
+                            }
+                        );
+
+
+                    item.classList.add(
+                        "active"
+                    );
+
+
+                    closeMobileSidebar();
+                }
+            );
+        }
+    );
+
+
+// =========================================================
+// INITIAL STATE
+// =========================================================
+
+updateCharacterCount();
+
+messageInput.focus();
