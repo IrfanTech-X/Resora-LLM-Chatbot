@@ -1,318 +1,202 @@
-const chatForm = document.getElementById("chat-form");
-const messageInput = document.getElementById("message");
-const messagesContainer = document.getElementById("messages");
-const sendButton = document.getElementById("send-button");
-const clearButton = document.getElementById("clear-chat");
-const welcomeScreen = document.getElementById("welcome-screen");
-const characterCount = document.getElementById("character-count");
+// ============================================================================
+// Resora — chat interactions
+// Wire this up to your Flask endpoint by editing CHAT_ENDPOINT below.
+// Expects: POST { message: string } -> JSON { reply: string }
+// ============================================================================
 
-const MAX_LENGTH = 4000;
+const CHAT_ENDPOINT = '/chat';
 
+const els = {
+    welcome: document.getElementById('welcome-screen'),
+    messages: document.getElementById('messages'),
+    form: document.getElementById('chat-form'),
+    textarea: document.getElementById('message'),
+    sendBtn: document.getElementById('send-button'),
+    charCount: document.getElementById('character-count'),
+    clearBtn: document.getElementById('clear-chat'),
+};
 
-/* =========================
-   Utility Functions
-   ========================= */
+let history = [];
+
+// ---- textarea: auto-grow + live character count -------------------------
+
+function autoGrow() {
+    els.textarea.style.height = 'auto';
+    els.textarea.style.height = Math.min(els.textarea.scrollHeight, 200) + 'px';
+}
+
+function updateCharCount() {
+    const len = els.textarea.value.length;
+    els.charCount.textContent = `${len} / 4000`;
+}
+
+els.textarea.addEventListener('input', () => {
+    autoGrow();
+    updateCharCount();
+    els.sendBtn.disabled = els.textarea.value.trim().length === 0;
+});
+
+els.textarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        els.form.requestSubmit();
+    }
+});
+
+// ---- rendering -------------------------------------------------------------
+
+function renderMarkdown(text) {
+    if (window.marked && window.DOMPurify) {
+        const raw = marked.parse(text, { breaks: true });
+        return DOMPurify.sanitize(raw);
+    }
+    // fallback: escape + preserve line breaks
+    const escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    return `<p>${escaped.replace(/\n/g, '<br>')}</p>`;
+}
+
+function appendMessage(role, text) {
+    hideWelcome();
+
+    const wrap = document.createElement('div');
+    wrap.className = `message ${role}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+
+    const body = document.createElement('div');
+    body.className = 'message-body';
+
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    content.innerHTML = renderMarkdown(text);
+
+    body.appendChild(content);
+    wrap.appendChild(avatar);
+    wrap.appendChild(body);
+    els.messages.appendChild(wrap);
+
+    scrollToBottom();
+    return content;
+}
+
+function appendTyping() {
+    hideWelcome();
+
+    const wrap = document.createElement('div');
+    wrap.className = 'message assistant';
+    wrap.id = 'typing-indicator';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+
+    const body = document.createElement('div');
+    body.className = 'message-body';
+
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    content.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+
+    body.appendChild(content);
+    wrap.appendChild(avatar);
+    wrap.appendChild(body);
+    els.messages.appendChild(wrap);
+
+    scrollToBottom();
+}
+
+function removeTyping() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+}
+
+function hideWelcome() {
+    if (els.welcome && !els.welcome.hidden) {
+        els.welcome.hidden = true;
+    }
+}
 
 function scrollToBottom() {
-    const chatContainer = document.querySelector(".chat-container");
-
-    chatContainer.scrollTo({
-        top: chatContainer.scrollHeight,
-        behavior: "smooth"
-    });
+    const container = document.querySelector('.chat-container');
+    container.scrollTop = container.scrollHeight;
 }
 
+// ---- sending -----------------------------------------------------------
 
-function updateCharacterCount() {
-    characterCount.textContent =
-        `${messageInput.value.length} / ${MAX_LENGTH}`;
-}
+async function sendMessage(text) {
+    appendMessage('user', text);
+    history.push({ role: 'user', content: text });
 
-
-function hideWelcomeScreen() {
-    welcomeScreen.style.display = "none";
-}
-
-
-function showWelcomeScreen() {
-    welcomeScreen.style.display = "block";
-}
-
-
-/* =========================
-   Add Message
-   ========================= */
-
-function addMessage(role, content) {
-
-    const message = document.createElement("div");
-
-    message.className = `message ${role}`;
-
-    const avatar = document.createElement("div");
-
-    avatar.className = "message-avatar";
-
-    avatar.textContent = role === "user" ? "U" : "R";
-
-
-    const messageContent = document.createElement("div");
-
-    messageContent.className = "message-content";
-
-
-    if (role === "assistant") {
-
-        /*
-         * Convert Markdown returned by the LLM into HTML.
-         * DOMPurify removes potentially unsafe HTML.
-         */
-        if (
-            typeof marked !== "undefined" &&
-            typeof DOMPurify !== "undefined"
-        ) {
-            messageContent.innerHTML = DOMPurify.sanitize(
-                marked.parse(content)
-            );
-        } else {
-            messageContent.textContent = content;
-        }
-
-    } else {
-
-        // User messages are always treated as plain text.
-        messageContent.textContent = content;
-
-    }
-
-
-    message.appendChild(avatar);
-    message.appendChild(messageContent);
-
-    messagesContainer.appendChild(message);
-
-    scrollToBottom();
-}
-
-
-/* =========================
-   Loading Indicator
-   ========================= */
-
-function showLoading() {
-
-    const message = document.createElement("div");
-
-    message.className = "message assistant";
-    message.id = "loading-message";
-
-    message.innerHTML = `
-        <div class="message-avatar">R</div>
-
-        <div class="message-content">
-            <div class="typing-indicator">
-                <span class="typing-dot"></span>
-                <span class="typing-dot"></span>
-                <span class="typing-dot"></span>
-            </div>
-        </div>
-    `;
-
-    messagesContainer.appendChild(message);
-
-    scrollToBottom();
-}
-
-
-function removeLoading() {
-
-    const loadingMessage =
-        document.getElementById("loading-message");
-
-    if (loadingMessage) {
-        loadingMessage.remove();
-    }
-}
-
-
-/* =========================
-   Send Message
-   ========================= */
-
-async function sendMessage(message) {
-
-    if (!message || sendButton.disabled) {
-        return;
-    }
-
-
-    hideWelcomeScreen();
-
-    addMessage("user", message);
-
-    messageInput.value = "";
-
-    updateCharacterCount();
-
-    sendButton.disabled = true;
-
-    showLoading();
-
+    els.sendBtn.disabled = true;
+    appendTyping();
 
     try {
-
-        const response = await fetch("/chat", {
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/json"
-            },
-
-            body: JSON.stringify({
-                message: message
-            })
+        const res = await fetch(CHAT_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text, history }),
         });
 
+        if (!res.ok) throw new Error(`Request failed (${res.status})`);
 
-        const data = await response.json();
+        const data = await res.json();
+        const reply = data.reply ?? data.response ?? data.message ?? 'Sorry, I could not generate a response.';
 
-        removeLoading();
-
-
-        if (!response.ok) {
-
-            addMessage(
-                "assistant",
-                data.error || "Something went wrong."
-            );
-
-            return;
-        }
-
-
-        addMessage(
-            "assistant",
-            data.response
+        removeTyping();
+        appendMessage('assistant', reply);
+        history.push({ role: 'assistant', content: reply });
+    } catch (err) {
+        removeTyping();
+        appendMessage(
+            'assistant',
+            `⚠️ Couldn't reach Resora's backend (\`${CHAT_ENDPOINT}\`). ${err.message}`
         );
-
-
-    } catch (error) {
-
-        console.error("Request error:", error);
-
-        removeLoading();
-
-        addMessage(
-            "assistant",
-            "I couldn't connect to the server. Please make sure Flask is running and try again."
-        );
-
     } finally {
-
-        sendButton.disabled = false;
-
-        messageInput.focus();
+        els.sendBtn.disabled = els.textarea.value.trim().length === 0;
     }
 }
 
+els.form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = els.textarea.value.trim();
+    if (!text) return;
 
-/* =========================
-   Form Submission
-   ========================= */
-
-chatForm.addEventListener("submit", async (event) => {
-
-    event.preventDefault();
-
-    const message = messageInput.value.trim();
-
-    if (!message) {
-        return;
-    }
-
-    await sendMessage(message);
+    els.textarea.value = '';
+    autoGrow();
+    updateCharCount();
+    sendMessage(text);
 });
 
+// ---- prompt cards --------------------------------------------------------
 
-/* =========================
-   Enter Key
-   ========================= */
-
-messageInput.addEventListener("keydown", (event) => {
-
-    /*
-     * Enter sends the message.
-     * Shift + Enter creates a new line.
-     */
-
-    if (
-        event.key === "Enter" &&
-        !event.shiftKey
-    ) {
-        event.preventDefault();
-
-        chatForm.requestSubmit();
-    }
-});
-
-
-/* =========================
-   Auto Resize Textarea
-   ========================= */
-
-messageInput.addEventListener("input", () => {
-
-    messageInput.style.height = "auto";
-
-    messageInput.style.height =
-        Math.min(messageInput.scrollHeight, 160) + "px";
-
-    updateCharacterCount();
-});
-
-
-/* =========================
-   Example Prompt Buttons
-   ========================= */
-
-document.querySelectorAll(".prompt-card").forEach((button) => {
-
-    button.addEventListener("click", () => {
-
-        const prompt = button.dataset.prompt;
-
-        messageInput.value = prompt;
-
-        updateCharacterCount();
-
-        messageInput.focus();
-
-        chatForm.requestSubmit();
+document.querySelectorAll('.prompt-card').forEach((card) => {
+    card.addEventListener('click', () => {
+        const prompt = card.dataset.prompt;
+        if (!prompt) return;
+        els.textarea.value = prompt;
+        autoGrow();
+        updateCharCount();
+        els.sendBtn.disabled = false;
+        els.form.requestSubmit();
     });
 });
 
+// ---- clear chat ----------------------------------------------------------
 
-/* =========================
-   Clear Chat
-   ========================= */
-
-clearButton.addEventListener("click", () => {
-
-    messagesContainer.innerHTML = "";
-
-    showWelcomeScreen();
-
-    messageInput.value = "";
-
-    updateCharacterCount();
-
-    messageInput.focus();
+els.clearBtn.addEventListener('click', () => {
+    els.messages.innerHTML = '';
+    history = [];
+    els.welcome.hidden = false;
+    els.textarea.value = '';
+    autoGrow();
+    updateCharCount();
+    els.sendBtn.disabled = true;
 });
 
+// ---- init ------------------------------------------------------------------
 
-/* =========================
-   Initial State
-   ========================= */
-
-updateCharacterCount();
-messageInput.focus();
+updateCharCount();
+els.sendBtn.disabled = true;
