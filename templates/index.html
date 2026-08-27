@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resora - Research Chatbot</title>
+</head>
+<body>
+
+    <h1>Resora</h1>
+    <p>AI Research Assistant</p>
+
+    <form id="chat-form">
+        <input
+            type="text"
+            id="message"
+            placeholder="Ask a research question..."
+            required
+        >
+
+        <button type="submit">Send</button>
+    </form>
+
+    <div id="response"></div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>
