@@ -40,6 +40,13 @@ const MAX_LENGTH = 4000;
 
 
 // =========================================================
+// CONVERSATION MEMORY
+// =========================================================
+
+let conversationHistory = [];
+
+
+// =========================================================
 // SCROLL
 // =========================================================
 
@@ -71,7 +78,7 @@ function updateCharacterCount() {
 
 
 // =========================================================
-// WELCOME
+// WELCOME SCREEN
 // =========================================================
 
 function hideWelcome() {
@@ -252,15 +259,12 @@ function showLoading() {
             Resora
         </div>
 
-
         <div class="message-content">
 
             <div class="typing-indicator">
 
                 <span class="typing-dot"></span>
-
                 <span class="typing-dot"></span>
-
                 <span class="typing-dot"></span>
 
             </div>
@@ -295,7 +299,7 @@ function removeLoading() {
 
 
 // =========================================================
-// RENDER MARKDOWN
+// MARKDOWN RENDERING
 // =========================================================
 
 function renderMarkdown(
@@ -326,7 +330,7 @@ function renderMarkdown(
 
 
 // =========================================================
-// STREAM CHAT RESPONSE
+// STREAM RESPONSE
 // =========================================================
 
 async function sendMessage(
@@ -342,11 +346,15 @@ async function sendMessage(
     }
 
 
+    // -----------------------------------------------------
+    // Hide welcome screen
+    // -----------------------------------------------------
+
     hideWelcome();
 
 
     // -----------------------------------------------------
-    // Display user message
+    // Display user's message
     // -----------------------------------------------------
 
     addUserMessage(
@@ -355,19 +363,32 @@ async function sendMessage(
 
 
     // -----------------------------------------------------
+    // Add current user message to history
+    // -----------------------------------------------------
+
+    conversationHistory.push({
+
+        role: "user",
+
+        content: message
+
+    });
+
+
+    // -----------------------------------------------------
     // Clear input
     // -----------------------------------------------------
 
     messageInput.value = "";
 
-    updateCharacterCount();
-
     messageInput.style.height =
         "auto";
 
+    updateCharacterCount();
+
 
     // -----------------------------------------------------
-    // Disable input
+    // Disable send
     // -----------------------------------------------------
 
     sendButton.disabled =
@@ -380,7 +401,7 @@ async function sendMessage(
     try {
 
         // -------------------------------------------------
-        // Send request
+        // Send request with conversation history
         // -------------------------------------------------
 
         const response =
@@ -400,7 +421,14 @@ async function sendMessage(
                     body: JSON.stringify({
 
                         message:
-                            message
+                            message,
+
+                        history:
+                            conversationHistory
+                                .slice(
+                                    0,
+                                    -1
+                                )
 
                     })
 
@@ -409,7 +437,7 @@ async function sendMessage(
 
 
         // -------------------------------------------------
-        // HTTP error
+        // Handle HTTP errors
         // -------------------------------------------------
 
         if (!response.ok) {
@@ -427,7 +455,9 @@ async function sendMessage(
                     await response.json();
 
 
-                if (errorData.error) {
+                if (
+                    errorData.error
+                ) {
 
                     errorMessage =
                         errorData.error;
@@ -435,20 +465,8 @@ async function sendMessage(
 
             } catch {
 
-                // Keep default message
+                // Use default message
             }
-
-
-            addUserMessage(
-                ""
-            );
-
-
-            const lastMessage =
-                messagesContainer.lastElementChild;
-
-
-            lastMessage.remove();
 
 
             const errorElement =
@@ -459,19 +477,23 @@ async function sendMessage(
                 errorMessage;
 
 
+            // Remove user message from history
+            conversationHistory.pop();
+
+
             return;
         }
 
 
         // -------------------------------------------------
-        // Remove loading
+        // Remove typing indicator
         // -------------------------------------------------
 
         removeLoading();
 
 
         // -------------------------------------------------
-        // Create empty Resora message
+        // Create empty assistant message
         // -------------------------------------------------
 
         const assistantContent =
@@ -482,7 +504,7 @@ async function sendMessage(
 
 
         // -------------------------------------------------
-        // Read streaming body
+        // Read response stream
         // -------------------------------------------------
 
         const reader =
@@ -515,7 +537,6 @@ async function sendMessage(
             }
 
 
-            // Decode current chunk
             buffer += decoder.decode(
                 value,
                 {
@@ -524,19 +545,24 @@ async function sendMessage(
             );
 
 
-            // SSE events are separated by blank lines
+            // -------------------------------------------------
+            // Separate SSE events
+            // -------------------------------------------------
+
             const events =
                 buffer.split(
                     "\n\n"
                 );
 
 
-            // Keep incomplete event
             buffer =
                 events.pop();
 
 
-            // Process complete events
+            // -------------------------------------------------
+            // Process events
+            // -------------------------------------------------
+
             for (
                 const event
                 of events
@@ -556,6 +582,7 @@ async function sendMessage(
                             "data: "
                         )
                     ) {
+
                         continue;
                     }
 
@@ -575,10 +602,12 @@ async function sendMessage(
 
 
                         // ---------------------------------
-                        // Error from Flask
+                        // Server error
                         // ---------------------------------
 
-                        if (data.error) {
+                        if (
+                            data.error
+                        ) {
 
                             throw new Error(
                                 data.error
@@ -587,7 +616,7 @@ async function sendMessage(
 
 
                         // ---------------------------------
-                        // New text chunk
+                        // Streamed content
                         // ---------------------------------
 
                         if (
@@ -598,11 +627,6 @@ async function sendMessage(
                                 data.content;
 
 
-                            /*
-                             * Re-render Markdown as the
-                             * response grows.
-                             */
-
                             renderMarkdown(
                                 assistantContent,
                                 fullResponse
@@ -612,20 +636,6 @@ async function sendMessage(
                             scrollToBottom();
                         }
 
-
-                        // ---------------------------------
-                        // Finished
-                        // ---------------------------------
-
-                        if (
-                            data.done
-                        ) {
-
-                            renderMarkdown(
-                                assistantContent,
-                                fullResponse
-                            );
-                        }
 
                     } catch (error) {
 
@@ -640,59 +650,42 @@ async function sendMessage(
 
 
         // -------------------------------------------------
-        // Process any remaining buffer
+        // Final rendering
         // -------------------------------------------------
 
-        if (buffer.trim()) {
-
-            const lines =
-                buffer.split("\n");
-
-
-            for (
-                const line
-                of lines
-            ) {
-
-                if (
-                    !line.startsWith(
-                        "data: "
-                    )
-                ) {
-                    continue;
-                }
+        renderMarkdown(
+            assistantContent,
+            fullResponse
+        );
 
 
-                try {
+        // -------------------------------------------------
+        // Add assistant response to history
+        // -------------------------------------------------
 
-                    const data =
-                        JSON.parse(
-                            line.slice(6)
-                        );
+        if (fullResponse.trim()) {
+
+            conversationHistory.push({
+
+                role: "assistant",
+
+                content:
+                    fullResponse
+
+            });
+
+        } else {
+
+            /*
+             * If no response was generated,
+             * remove the user message as well.
+             */
+
+            conversationHistory.pop();
 
 
-                    if (
-                        data.content
-                    ) {
-
-                        fullResponse +=
-                            data.content;
-
-
-                        renderMarkdown(
-                            assistantContent,
-                            fullResponse
-                        );
-                    }
-
-                } catch (error) {
-
-                    console.error(
-                        "Final stream parsing error:",
-                        error
-                    );
-                }
-            }
+            assistantContent.textContent =
+                "Resora did not return a response. Please try again.";
         }
 
 
@@ -707,7 +700,11 @@ async function sendMessage(
         removeLoading();
 
 
-        // Remove any incomplete assistant response
+        // Remove failed user turn
+        conversationHistory.pop();
+
+
+        // Remove incomplete assistant
         const incomplete =
             messagesContainer.lastElementChild;
 
@@ -743,7 +740,7 @@ async function sendMessage(
 
 
 // =========================================================
-// FORM SUBMISSION
+// FORM
 // =========================================================
 
 chatForm.addEventListener(
@@ -771,7 +768,7 @@ chatForm.addEventListener(
 
 
 // =========================================================
-// ENTER / SHIFT+ENTER
+// ENTER / SHIFT + ENTER
 // =========================================================
 
 messageInput.addEventListener(
@@ -816,7 +813,7 @@ messageInput.addEventListener(
 
 
 // =========================================================
-// RESEARCH CARDS
+// RESEARCH PROMPTS
 // =========================================================
 
 document
@@ -861,6 +858,10 @@ function startNewChat() {
         "";
 
 
+    conversationHistory =
+        [];
+
+
     showWelcome();
 
 
@@ -868,11 +869,11 @@ function startNewChat() {
         "";
 
 
-    updateCharacterCount();
-
-
     messageInput.style.height =
         "auto";
+
+
+    updateCharacterCount();
 
 
     messageInput.focus();
@@ -962,7 +963,7 @@ document
 
 
 // =========================================================
-// INITIALIZATION
+// INITIALIZE
 // =========================================================
 
 updateCharacterCount();

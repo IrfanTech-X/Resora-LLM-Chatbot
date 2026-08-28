@@ -1,5 +1,5 @@
-import os
 import json
+import os
 
 from dotenv import load_dotenv
 from flask import (
@@ -42,10 +42,19 @@ client = Groq(api_key=api_key)
 
 
 # =========================================================
-# Model Configuration
+# Model
 # =========================================================
 
 MODEL_NAME = "openai/gpt-oss-120b"
+
+
+# =========================================================
+# Conversation Limits
+# =========================================================
+
+MAX_HISTORY_MESSAGES = 20
+
+MAX_MESSAGE_LENGTH = 4000
 
 
 # =========================================================
@@ -77,6 +86,11 @@ students.
 Structure responses using headings, paragraphs, bullet points,
 or numbered lists when they improve readability.
 
+Maintain continuity with the previous conversation when
+answering follow-up questions. Resolve references such as
+"it", "this", "that method", or "the dataset above" using
+the conversation context when possible.
+
 Do not fabricate:
 - Research papers
 - Authors
@@ -87,14 +101,14 @@ Do not fabricate:
 - Research findings
 
 If the user asks for academic references, clearly explain that
-generated information should be verified using reliable academic
-sources.
+generated information should be verified using reliable
+academic sources.
 
 Do not pretend that generated information is a verified
 literature review.
 
 Do not claim that you have searched academic databases unless
-an actual search/retrieval tool has been used.
+an actual search or retrieval tool has been used.
 
 Your goal is to act as an intelligent research companion,
 not as a replacement for original research papers.
@@ -108,7 +122,7 @@ not as a replacement for original research papers.
 @app.route("/")
 def home():
     """
-    Render the Resora chatbot interface.
+    Render the Resora interface.
     """
 
     return render_template("index.html")
@@ -121,7 +135,7 @@ def home():
 @app.route("/health")
 def health():
     """
-    Health endpoint for deployment monitoring.
+    Health endpoint for Render monitoring.
     """
 
     return jsonify({
@@ -131,20 +145,20 @@ def health():
 
 
 # =========================================================
-# Streaming Chat Route
+# Chat Route
 # =========================================================
 
 @app.route("/chat", methods=["POST"])
 def chat():
     """
-    Stream the LLM response from Groq to the browser
-    using Server-Sent Events.
+    Receive conversation history and stream the new
+    Resora response back to the browser.
     """
 
     try:
 
         # -------------------------------------------------
-        # Read request
+        # Read JSON request
         # -------------------------------------------------
 
         data = request.get_json()
@@ -157,7 +171,7 @@ def chat():
 
 
         # -------------------------------------------------
-        # Extract user message
+        # Get current message
         # -------------------------------------------------
 
         user_message = data.get(
@@ -166,10 +180,6 @@ def chat():
         ).strip()
 
 
-        # -------------------------------------------------
-        # Validate message
-        # -------------------------------------------------
-
         if not user_message:
 
             return jsonify({
@@ -177,8 +187,126 @@ def chat():
             }), 400
 
 
+        if len(user_message) > MAX_MESSAGE_LENGTH:
+
+            return jsonify({
+                "error":
+                    "Your message is too long. "
+                    "Please keep it under 4000 characters."
+            }), 400
+
+
         # -------------------------------------------------
-        # Generate streaming response
+        # Get conversation history
+        # -------------------------------------------------
+
+        history = data.get(
+            "history",
+            []
+        )
+
+
+        # Ensure history is actually a list
+        if not isinstance(history, list):
+
+            history = []
+
+
+        # -------------------------------------------------
+        # Build safe conversation history
+        # -------------------------------------------------
+
+        conversation = []
+
+
+        for message in history:
+
+            # Ignore malformed entries
+            if not isinstance(message, dict):
+                continue
+
+
+            role = message.get("role")
+            content = message.get("content")
+
+
+            # Only accept user/assistant messages
+            if role not in {
+                "user",
+                "assistant"
+            }:
+                continue
+
+
+            # Only accept string content
+            if not isinstance(
+                content,
+                str
+            ):
+                continue
+
+
+            content = content.strip()
+
+
+            if not content:
+                continue
+
+
+            # Protect against extremely large messages
+            content = content[
+                :MAX_MESSAGE_LENGTH
+            ]
+
+
+            conversation.append({
+
+                "role": role,
+
+                "content": content
+
+            })
+
+
+        # -------------------------------------------------
+        # Keep only recent messages
+        # -------------------------------------------------
+
+        conversation = conversation[
+            -MAX_HISTORY_MESSAGES:
+        ]
+
+
+        # -------------------------------------------------
+        # Build complete messages list
+        # -------------------------------------------------
+
+        messages = [
+
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT
+            }
+
+        ]
+
+
+        messages.extend(
+            conversation
+        )
+
+
+        messages.append({
+
+            "role": "user",
+
+            "content": user_message
+
+        })
+
+
+        # -------------------------------------------------
+        # Streaming generator
         # -------------------------------------------------
 
         @stream_with_context
@@ -186,32 +314,32 @@ def chat():
 
             try:
 
-                # Request streaming completion from Groq
-                stream = client.chat.completions.create(
+                # -----------------------------------------
+                # Request streaming completion
+                # -----------------------------------------
 
-                    model=MODEL_NAME,
+                stream = (
+                    client
+                    .chat
+                    .completions
+                    .create(
 
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": SYSTEM_PROMPT
-                        },
-                        {
-                            "role": "user",
-                            "content": user_message
-                        }
-                    ],
+                        model=MODEL_NAME,
 
-                    temperature=0.3,
+                        messages=messages,
 
-                    max_completion_tokens=2048,
+                        temperature=0.3,
 
-                    stream=True
+                        max_completion_tokens=2048,
+
+                        stream=True
+
+                    )
                 )
 
 
                 # -----------------------------------------
-                # Forward each generated chunk
+                # Forward generated chunks
                 # -----------------------------------------
 
                 for chunk in stream:
@@ -220,30 +348,44 @@ def chat():
                         continue
 
 
-                    delta = chunk.choices[0].delta
+                    delta = (
+                        chunk
+                        .choices[0]
+                        .delta
+                    )
 
 
-                    content = delta.content
+                    content = (
+                        delta.content
+                    )
 
 
                     if content:
 
-                        # Send JSON-formatted SSE event
                         yield (
-                            f"data: "
-                            f"{json.dumps({'content': content})}"
-                            f"\n\n"
+                            "data: "
+                            +
+                            json.dumps({
+                                "content":
+                                    content
+                            })
+                            +
+                            "\n\n"
                         )
 
 
                 # -----------------------------------------
-                # Tell frontend streaming is complete
+                # Tell frontend stream is complete
                 # -----------------------------------------
 
                 yield (
-                    f"data: "
-                    f"{json.dumps({'done': True})}"
-                    f"\n\n"
+                    "data: "
+                    +
+                    json.dumps({
+                        "done": True
+                    })
+                    +
+                    "\n\n"
                 )
 
 
@@ -254,20 +396,21 @@ def chat():
                 )
 
 
-                # Send error event to browser
                 yield (
-                    f"data: "
-                    f"{json.dumps({
-                        'error':
-                        'Something went wrong while '
-                        'generating the response.'
-                    })}"
-                    f"\n\n"
+                    "data: "
+                    +
+                    json.dumps({
+                        "error":
+                            "Something went wrong "
+                            "while generating the response."
+                    })
+                    +
+                    "\n\n"
                 )
 
 
         # -------------------------------------------------
-        # Return SSE response
+        # Return SSE stream
         # -------------------------------------------------
 
         return Response(
@@ -281,6 +424,7 @@ def chat():
                 "X-Accel-Buffering": "no",
                 "Connection": "keep-alive",
             }
+
         )
 
 
@@ -289,6 +433,7 @@ def chat():
         print(
             f"Resora request error: {error}"
         )
+
 
         return jsonify({
 
