@@ -20,7 +20,7 @@ Resora currently uses:
 * **CSS**
 * **JavaScript**
 
-The application also supports:
+The application also supports: 
 
 * Research-oriented prompting
 * Multi-turn conversation
