@@ -1,7 +1,6 @@
 # Resora — LLM-Powered Research Chatbot
 
 > A simple research-oriented chatbot powered by a Large Language Model (LLM) through the Groq API.
-> Developed for **CSE 414: Natural Language Processing — Lab Report 1 + CLP 1** at Green University of Bangladesh.
 
 ---
 
