@@ -1,73 +1,428 @@
-# Resora — LLM-Powered Research Chatbot
+# Resora — LLM Research Assistant with RAG
 
-> A simple research-oriented chatbot powered by a Large Language Model (LLM) through the Groq API.
+> **An end-to-end AI research assistant combining LLMs, Retrieval-Augmented Generation (RAG), semantic embeddings, document retrieval, conversational memory, streaming responses, and cloud deployment.**
 
----
+[![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python\&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Backend-Flask-black?logo=flask)](https://flask.palletsprojects.com/)
+[![Groq](https://img.shields.io/badge/LLM-Groq-orange)](https://groq.com/)
+[![RAG](https://img.shields.io/badge/AI-RAG-purple)](#-retrieval-augmented-generation-rag)
+[![Render](https://img.shields.io/badge/Deployed-Render-46E3B7)](https://render.com/)
 
-## 📌 Overview
-
-**Resora** is an LLM-powered research assistant designed to help undergraduate students explore research topics, understand NLP and machine learning concepts, develop research ideas, and discuss possible research methodologies.
-
-The system provides a simple web-based conversational interface where users can submit research questions and receive AI-generated responses.
-
-Resora currently uses:
-
-* **Python**
-* **Flask**
-* **Groq API**
-* **OpenAI GPT-OSS-120B**
-* **HTML**
-* **CSS**
-* **JavaScript**
-
-The application also supports: 
-
-* Research-oriented prompting
-* Multi-turn conversation
-* Streaming LLM responses
-* Markdown-formatted responses
-* Responsive UI
-* Environment-based API key management
 
 ---
 
-# ✨ Features
+# 📌 Overview
 
-### 🤖 LLM-Powered Responses
+**Resora** is an AI-powered research assistant built with **Flask, Groq LLMs, Gemini Embeddings, and a custom lightweight RAG pipeline**.
 
-Resora uses the Groq API with:
+The application supports two modes:
+
+### General AI Conversation
+
+Users can ask research, NLP, machine learning, AI, methodology, and general questions directly to the LLM.
+
+### Document-Grounded Research
+
+Users can upload a **PDF, DOCX, TXT, or Markdown document**, after which Resora:
+
+1. Extracts the document text
+2. Splits it into overlapping chunks
+3. Generates semantic embeddings
+4. Stores the vectors in memory
+5. Embeds the user's question
+6. Retrieves the most relevant document chunks
+7. Injects the retrieved context into the LLM prompt
+8. Generates a grounded answer through Groq
+
+This turns Resora from a simple chatbot into a practical **Retrieval-Augmented Generation application**.
+
+---
+
+# 🚀 Key Features
+
+| Feature                  | Description                                                              |
+| ------------------------ | ------------------------------------------------------------------------ |
+| 🤖 LLM Chat              | Research-oriented conversational AI powered by Groq                      |
+| 🔎 RAG                   | Retrieves relevant information from uploaded documents before generation |
+| 🧠 Semantic Embeddings   | Uses Gemini Embeddings API for document and query vectors                |
+| 📄 Document QA           | Supports PDF, DOCX, TXT, and Markdown                                    |
+| ✂️ Text Chunking         | Splits documents into overlapping chunks for retrieval                   |
+| 📐 Similarity Search     | Uses normalized NumPy vectors and cosine similarity                      |
+| 💬 Conversation Memory   | Maintains recent multi-turn conversation context                         |
+| ⚡ Streaming              | Streams generated responses to the browser using SSE                     |
+| 🧩 Model Selection       | Allows the frontend to request available Groq chat models                |
+| 🛡️ Secure Configuration | API keys are handled through environment variables                       |
+| ☁️ Cloud Deployment      | Deployed as a Flask application on Render                                |
+| 📱 Responsive UI         | ChatGPT-style interface across desktop and mobile                        |
+
+---
+
+# 🧠 Retrieval-Augmented Generation (RAG)
+
+A normal LLM chatbot follows:
 
 ```text
-Model: openai/gpt-oss-120b
+User Question
+      ↓
+     LLM
+      ↓
+   Answer
 ```
 
-to generate research-oriented responses.
+The problem is that the LLM does not automatically know the contents of a document uploaded by the user.
 
-### 🔬 Research-Oriented Assistant
+Resora adds a retrieval layer:
 
-The system prompt instructs Resora to help with:
+```text
+                 DOCUMENT INGESTION
+                        │
+                        ▼
+             ┌─────────────────────┐
+             │ PDF / DOCX / TXT / MD│
+             └──────────┬──────────┘
+                        ▼
+                 Text Extraction
+                        │
+                        ▼
+                   Text Chunking
+                        │
+                        ▼
+              Gemini Embeddings API
+                        │
+                        ▼
+               Document Embeddings
+                        │
+                        ▼
+                 In-Memory Store
+                        │
+                        │
+User Question ──────────┤
+                        ▼
+              Query Embedding
+                        │
+                        ▼
+              Cosine Similarity
+                        │
+                        ▼
+             Top Relevant Chunks
+                        │
+                        ▼
+              Retrieved Context
+                        │
+                        ▼
+                   Groq LLM
+                        │
+                        ▼
+              Grounded Response
+```
 
-* Research topic exploration
-* Research questions
-* Research methodology
-* NLP concepts
-* Machine learning concepts
-* Research directions
-* Possible datasets
-* Models and evaluation approaches
-* Research challenges and limitations
+---
 
-### ⚡ Streaming Responses
+# 🔍 RAG Pipeline — Step by Step
 
-Responses are streamed from the Groq API rather than waiting for the entire response to be generated.
+## 1. Document Ingestion
 
-The user therefore sees the response progressively, similar to modern AI assistants.
+When a user uploads a supported file, Resora extracts its textual content.
 
-### 💬 Conversation History
+Supported formats:
 
-Resora maintains conversation history in the browser during the current session.
+```text
+PDF
+DOCX
+TXT
+Markdown (.md)
+```
 
-This allows follow-up questions such as:
+The current implementation limits uploaded files to **15 MB**.
+
+---
+
+## 2. Text Extraction
+
+Resora uses file-specific extraction logic.
+
+```text
+PDF
+ ↓
+pypdf
+ ↓
+Plain text
+```
+
+```text
+DOCX
+ ↓
+python-docx
+ ↓
+Plain text
+```
+
+```text
+TXT / Markdown
+ ↓
+UTF-8 decoding
+ ↓
+Plain text
+```
+
+The extracted text is normalized before chunking.
+
+---
+
+## 3. Text Chunking
+
+Large documents are divided into smaller overlapping pieces.
+
+Current configuration:
+
+```text
+Chunk size:     900 characters
+Chunk overlap:  150 characters
+```
+
+Conceptually:
+
+```text
+Document
+   │
+   ├── Chunk 1
+   ├── Chunk 2
+   ├── Chunk 3
+   ├── ...
+   └── Chunk N
+```
+
+The overlap helps preserve contextual information across chunk boundaries.
+
+---
+
+## 4. Semantic Embeddings
+
+Each document chunk is converted into a numerical vector through the **Gemini Embeddings API**.
+
+Current embedding model:
+
+```text
+gemini-embedding-001
+```
+
+The document side uses:
+
+```text
+RETRIEVAL_DOCUMENT
+```
+
+while user questions use:
+
+```text
+RETRIEVAL_QUERY
+```
+
+This separates document representation from query representation within the retrieval workflow.
+
+The application uses a **768-dimensional output representation** to keep the in-memory vectors relatively compact.
+
+---
+
+## 5. In-Memory Vector Store
+
+Instead of introducing a heavyweight external vector database, Resora currently uses a lightweight custom `VectorStore`.
+
+The store maintains:
+
+```text
+Document filename
+       +
+Text chunks
+       +
+Embedding matrix
+```
+
+The embeddings are normalized before storage.
+
+Because both vectors are unit-normalized, similarity can be calculated efficiently with a dot product:
+
+```python
+scores = self.embeddings @ query_embedding
+```
+
+which corresponds to cosine similarity for normalized vectors.
+
+---
+
+## 6. Query Embedding
+
+When the user asks a question about the uploaded document:
+
+```text
+User Question
+      ↓
+Gemini Embeddings API
+      ↓
+Query Vector
+```
+
+The query vector is compared against the document chunk vectors.
+
+---
+
+## 7. Semantic Retrieval
+
+Resora retrieves the highest-scoring chunks using cosine similarity.
+
+Current retrieval configuration:
+
+```text
+Top-K:          4 chunks
+Minimum score:  0.20
+```
+
+Conceptually:
+
+```text
+Question
+   ↓
+Vector
+   ↓
+Similarity Search
+   ↓
+┌─────────────────────────────┐
+│ Chunk 7    0.82             │
+│ Chunk 2    0.76             │
+│ Chunk 11   0.71             │
+│ Chunk 4    0.63             │
+└─────────────────────────────┘
+```
+
+Only sufficiently relevant chunks are passed forward.
+
+---
+
+## 8. Context Grounding
+
+The retrieved passages are formatted into a context block and injected into the LLM conversation.
+
+The LLM therefore receives:
+
+```text
+System Instructions
+        +
+Conversation History
+        +
+Retrieved Document Context
+        +
+Current User Question
+```
+
+This allows the model to answer using information retrieved from the user's document.
+
+---
+
+## 9. LLM Generation
+
+After retrieval, the final response is generated using the Groq API.
+
+Current default model:
+
+```text
+openai/gpt-oss-120b
+```
+
+The RAG architecture therefore separates the two major AI responsibilities:
+
+```text
+Gemini
+  ↓
+Embedding & Retrieval
+
+Groq
+  ↓
+Language Generation
+```
+
+This design also avoids loading a large local embedding model into the deployed Flask application.
+
+---
+
+# 🤖 General Chat vs RAG Chat
+
+Resora preserves its original chatbot functionality.
+
+### Without a document
+
+```text
+User
+ ↓
+Flask
+ ↓
+Conversation History + System Prompt
+ ↓
+Groq
+ ↓
+Streaming Response
+ ↓
+Browser
+```
+
+### With a document
+
+```text
+User Question
+ ↓
+Gemini Query Embedding
+ ↓
+Semantic Retrieval
+ ↓
+Relevant Document Context
+ ↓
+Groq LLM
+ ↓
+Streaming Response
+ ↓
+Browser
+```
+
+This means the RAG functionality is an additional capability rather than a replacement for the original chatbot.
+
+---
+
+# ⚡ Streaming Responses
+
+Resora streams Groq's response rather than waiting for the complete answer.
+
+The backend uses:
+
+```python
+stream=True
+```
+
+and sends generated content through **Server-Sent Events (SSE)**.
+
+Simplified flow:
+
+```text
+Groq
+ │
+ ├── Token / Chunk 1
+ ├── Token / Chunk 2
+ ├── Token / Chunk 3
+ ├── Token / Chunk 4
+ └── ...
+        ↓
+ Flask SSE Stream
+        ↓
+ Browser
+```
+
+This creates a more responsive user experience similar to modern AI chat applications.
+
+---
+
+# 💬 Conversation Memory
+
+The frontend maintains conversation history during the active browser session.
+
+Example:
 
 ```text
 User:
@@ -77,94 +432,145 @@ Resora:
 ...
 
 User:
-What datasets can I use for it?
+What datasets are available?
 
 Resora:
 ...
 ```
 
-### 📝 Markdown Support
+The previous messages are sent back to the Flask backend as conversation history.
 
-LLM responses can contain:
+The backend currently limits retained history to the latest:
 
-* Headings
-* Lists
-* Numbered lists
-* Bold text
-* Code
-* Blockquotes
+```text
+20 messages
+```
 
-Markdown is rendered in the chatbot interface using:
+and limits individual messages to:
 
-* `marked.js`
-* `DOMPurify`
-
-### 📱 Responsive Interface
-
-The interface is designed to work on:
-
-* Desktop
-* Laptop
-* Tablet
-* Mobile devices
-
-### 🔐 Secure API Key Handling
-
-The Groq API key is stored in an environment variable rather than hardcoded in the source code.
-
-The `.env` file is excluded from Git using `.gitignore`.
+```text
+4000 characters
+```
 
 ---
 
-# 🏗️ Project Architecture
+# 🧩 Model Selection
 
-The current architecture is:
+Resora also includes a model-selection endpoint:
 
 ```text
-                    USER
-                      │
-                      ▼
-              ┌──────────────┐
-              │  Web Browser  │
-              │ HTML/CSS/JS   │
-              └───────┬──────┘
-                      │
-                  POST /chat
-                      │
-                      ▼
-              ┌──────────────┐
-              │    Flask     │
-              │   Backend    │
-              └───────┬──────┘
-                      │
-               System Prompt
-                      +
-               Conversation
-                      │
-                      ▼
-              ┌──────────────┐
-              │   Groq API   │
-              └───────┬──────┘
-                      │
-                      ▼
-              ┌──────────────┐
-              │ GPT-OSS-120B │
-              └───────┬──────┘
-                      │
-                 Streaming
-                      │
-                      ▼
-              ┌──────────────┐
-              │    Flask     │
-              │  SSE Stream  │
-              └───────┬──────┘
-                      │
-                      ▼
-              ┌──────────────┐
-              │  Web Browser │
-              │   Resora UI  │
-              └──────────────┘
+GET /models
 ```
+
+The backend attempts to retrieve available models from Groq and filters out models that are not suitable for chat.
+
+If the Groq model-list request fails, Resora falls back to a predefined model list.
+
+The default model remains:
+
+```text
+openai/gpt-oss-120b
+```
+
+---
+
+# 🏗️ System Architecture
+
+```text
+                         ┌──────────────────┐
+                         │   Web Browser    │
+                         │ HTML / CSS / JS  │
+                         └────────┬─────────┘
+                                  │
+                         HTTP / SSE / Upload
+                                  │
+                                  ▼
+                         ┌──────────────────┐
+                         │  Flask Backend   │
+                         │     app.py       │
+                         └────────┬─────────┘
+                                  │
+                 ┌────────────────┼────────────────┐
+                 │                │                │
+                 ▼                ▼                ▼
+            Chat Logic       RAG Engine       Model API
+                 │             rag.py              │
+                 │                │                 │
+                 │                ▼                 │
+                 │       Document Processing       │
+                 │                │                 │
+                 │                ▼                 │
+                 │       Gemini Embeddings         │
+                 │                │                 │
+                 │                ▼                 │
+                 │       NumPy Vector Store        │
+                 │                │                 │
+                 │                ▼                 │
+                 │       Semantic Retrieval        │
+                 │                │                 │
+                 └────────────────┼─────────────────┘
+                                  │
+                                  ▼
+                           ┌─────────────┐
+                           │  Groq LLM   │
+                           └──────┬──────┘
+                                  │
+                             SSE Stream
+                                  │
+                                  ▼
+                         ┌──────────────────┐
+                         │   Resora UI      │
+                         └──────────────────┘
+```
+
+---
+
+# 🛠️ Technology Stack
+
+### Backend
+
+* Python
+* Flask
+* Gunicorn
+
+### AI / NLP
+
+* Groq API
+* OpenAI GPT-OSS-120B
+* Gemini Embeddings API
+* Retrieval-Augmented Generation
+* Semantic embeddings
+* Cosine similarity
+* Prompt engineering
+
+### Document Processing
+
+* pypdf
+* python-docx
+* Plain-text / Markdown processing
+
+### Numerical Processing
+
+* NumPy
+
+### Frontend
+
+* HTML5
+* CSS3
+* JavaScript
+* marked.js
+* DOMPurify
+
+### Deployment
+
+* Render
+
+### Development
+
+* Git
+* GitHub
+* Python virtual environment
+* Environment variables
 
 ---
 
@@ -174,12 +580,11 @@ The current architecture is:
 Resora-LLM-Chatbot/
 │
 ├── app.py
+├── rag.py
 ├── requirements.txt
-├── .env
 ├── .env.example
 ├── .gitignore
-│
-├── venv/
+├── README.md
 │
 ├── templates/
 │   └── index.html
@@ -189,163 +594,126 @@ Resora-LLM-Chatbot/
     └── script.js
 ```
 
-## File Description
+### File Responsibilities
 
-| File / Folder          | Purpose                                                                            |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| `app.py`               | Flask server, Groq API integration, streaming endpoint, health endpoint            |
-| `requirements.txt`     | Python dependencies                                                                |
-| `.env`                 | Stores the actual Groq API key locally                                             |
-| `.env.example`         | Example environment-variable file without a real secret                            |
-| `.gitignore`           | Prevents secrets, virtual environment, and Python cache files from being committed |
-| `venv/`                | Local Python virtual environment                                                   |
-| `templates/index.html` | Main chatbot interface                                                             |
-| `static/style.css`     | UI styling                                                                         |
-| `static/script.js`     | Frontend logic, streaming, chat history, and UI interactions                       |
+| File                   | Purpose                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------ |
+| `app.py`               | Flask application, chat endpoint, streaming, model selection, document routes  |
+| `rag.py`               | Complete RAG engine: extraction, chunking, embeddings, vector store, retrieval |
+| `requirements.txt`     | Python dependencies                                                            |
+| `.env.example`         | Environment-variable template                                                  |
+| `.gitignore`           | Prevents secrets and local files from being committed                          |
+| `templates/index.html` | Main Resora interface                                                          |
+| `static/style.css`     | UI design and responsive styling                                               |
+| `static/script.js`     | Chat interaction, streaming display, document upload, model selection          |
 
 ---
 
-# 🧰 Prerequisites
+# 🔐 Environment Configuration
 
-Before running Resora, install the following:
+Resora requires two API credentials.
 
-### 1. Python
-
-Python **3.11 or another version compatible with the installed dependencies** is recommended.
-
-Check your Python installation:
-
-```powershell
-python --version
+```env
+GROQ_API_KEY=your_groq_api_key
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-Example:
+### Groq
+
+Used for:
 
 ```text
-Python 3.11.8
+LLM inference
+Chat completion
+Streaming responses
 ```
 
-If Python is not installed, download it from:
+### Gemini
 
-https://www.python.org/downloads/
-
-During installation on Windows, make sure:
+Used for:
 
 ```text
-Add Python to PATH
+Document embeddings
+Query embeddings
 ```
 
-is enabled.
+The two APIs are intentionally separated.
 
 ---
 
-### 2. Git
+# 🚨 Security
 
-Git is recommended for version control and GitHub deployment.
+Never commit real API keys to GitHub.
 
-Check:
+Your local `.env` should contain:
 
-```powershell
-git --version
+```env
+GROQ_API_KEY=your_actual_key
+GEMINI_API_KEY=your_actual_key
 ```
 
-Download:
+while `.env.example` should contain only placeholders:
 
-https://git-scm.com/downloads
+```env
+GROQ_API_KEY=your_groq_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+Recommended `.gitignore`:
+
+```gitignore
+.env
+venv/
+__pycache__/
+*.pyc
+```
+
+For cloud deployment, configure the secrets through the hosting provider's environment-variable system.
 
 ---
 
-### 3. Groq Account
+# 🚀 Local Installation
 
-Resora requires a Groq API key.
+## 1. Clone the repository
 
-Create an account and generate an API key from:
-
-https://console.groq.com/
-
-The current application uses:
-
-```text
-openai/gpt-oss-120b
-```
-
-as the LLM.
-
----
-
-# 🚀 Installation and Setup
-
-Follow these steps in order.
-
----
-
-## Step 1 — Clone the Repository
-
-If you are downloading the project from GitHub:
-
-```powershell
-git clone https://github.com/YOUR_USERNAME/Resora-LLM-Chatbot.git
-```
-
-Move into the project directory:
-
-```powershell
+```bash
+git clone https://github.com/IrfanTech-X/Resora-LLM-Chatbot.git
 cd Resora-LLM-Chatbot
 ```
 
 ---
 
-## Step 2 — Create a Virtual Environment
+## 2. Create a virtual environment
 
-Create a Python virtual environment:
+### Windows
 
 ```powershell
 python -m venv venv
 ```
 
-This creates:
+### Linux / macOS
 
-```text
-venv/
+```bash
+python3 -m venv venv
 ```
-
-inside the project.
-
-The virtual environment keeps Resora's Python dependencies isolated from other Python projects.
 
 ---
 
-# 🪟 Windows PowerShell
+## 3. Activate the environment
 
-Activate the virtual environment:
+### Windows PowerShell
 
 ```powershell
 venv\Scripts\Activate.ps1
 ```
 
-After activation, the terminal should look similar to:
-
-```text
-(venv) PS E:\Resora-LLM-Chatbot>
-```
-
-The `(venv)` indicates that the virtual environment is active.
-
----
-
-# 🪟 Windows Command Prompt
-
-If using Command Prompt instead of PowerShell:
+### Windows CMD
 
 ```cmd
 venv\Scripts\activate
 ```
 
----
-
-# 🐧 Linux / macOS
-
-Use:
+### Linux / macOS
 
 ```bash
 source venv/bin/activate
@@ -353,782 +721,425 @@ source venv/bin/activate
 
 ---
 
-# ⚠️ PowerShell Execution Policy Issue
+## 4. Install dependencies
 
-If PowerShell shows an error such as:
-
-```text
-running scripts is disabled on this system
-```
-
-you can activate the environment using Command Prompt:
-
-```cmd
-venv\Scripts\activate
-```
-
-Or change the PowerShell policy for the current user if appropriate:
-
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
-Then activate again:
-
-```powershell
-venv\Scripts\Activate.ps1
-```
-
----
-
-# Step 3 — Install Dependencies
-
-Make sure the virtual environment is active.
-
-Then run:
-
-```powershell
+```bash
 pip install -r requirements.txt
 ```
 
-This installs the dependencies required by Resora.
-
-The main packages include:
-
-```text
-Flask
-groq
-python-dotenv
-gunicorn
-```
-
-Additional packages required by those libraries may also be installed automatically.
-
 ---
 
-# Step 4 — Verify Installation
-
-You can check the installed packages:
-
-```powershell
-pip list
-```
-
-You can also verify individual packages:
-
-```powershell
-pip show flask
-```
-
-```powershell
-pip show groq
-```
-
-```powershell
-pip show python-dotenv
-```
-
----
-
-# 🔐 API Key Configuration
-
-Resora requires a Groq API key.
-
-## Step 5 — Create the `.env` File
-
-Create a file called:
-
-```text
-.env
-```
-
-in the project root:
-
-```text
-Resora-LLM-Chatbot/
-├── .env
-├── app.py
-└── ...
-```
-
-Add:
-
-```env
-GROQ_API_KEY=your_actual_groq_api_key
-```
-
-Replace:
-
-```text
-your_actual_groq_api_key
-```
-
-with the API key generated from Groq.
-
-Example:
-
-```env
-GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxx
-```
-
-Do not put quotes around the API key unless your environment specifically requires them.
-
----
-
-# 🚨 NEVER COMMIT THE `.env` FILE
-
-The `.env` file contains a secret API credential and must never be uploaded to a public repository.
-
-The project `.gitignore` should contain:
-
-```gitignore
-venv/
-.env
-__pycache__/
-*.pyc
-```
-
-Therefore:
-
-```text
-.env
-```
-
-will remain local.
-
----
-
-# Step 6 — Configure `.env.example`
+## 5. Configure environment variables
 
 Create:
 
 ```text
-.env.example
+.env
 ```
 
-with:
+in the project root.
+
+Add:
 
 ```env
-GROQ_API_KEY=your_groq_api_key_here
+GROQ_API_KEY=your_groq_api_key
+GEMINI_API_KEY=your_gemini_api_key
 ```
-
-This file is safe to commit because it does not contain the real key.
-
-A new developer can copy it:
-
-```powershell
-copy .env.example .env
-```
-
-and then replace the placeholder with their own Groq API key.
 
 ---
 
-# ▶️ Running Resora Locally
+## 6. Run Resora
 
-Once the environment and API key are configured, run:
-
-```powershell
+```bash
 python app.py
-```
-
-You should see something similar to:
-
-```text
-* Serving Flask app 'app'
-* Debug mode: on
-* Running on http://127.0.0.1:5000
-```
-
-Open the following URL in your browser:
-
-```text
-http://127.0.0.1:5000
-```
-
-Resora should now appear.
-
----
-
-# 💬 Using Resora
-
-You can either type a research question into the input field or select one of the example research prompts.
-
-Example:
-
-```text
-What is sentiment analysis in Bangla NLP?
-```
-
-Other examples:
-
-```text
-How can transformers be used for text classification?
-```
-
-```text
-What are the major challenges in Bangla natural language processing?
-```
-
-```text
-How should I design a research methodology for Bangla sentiment classification?
-```
-
----
-
-# ⚡ Streaming Responses
-
-Resora uses the Groq streaming API.
-
-The backend requests:
-
-```python
-stream=True
-```
-
-Instead of waiting for the entire response:
-
-```text
-Request
-   ↓
-Wait
-   ↓
-Complete response
-   ↓
-Display
-```
-
-Resora receives generated chunks progressively:
-
-```text
-Request
-   ↓
-Chunk 1
-   ↓
-Chunk 2
-   ↓
-Chunk 3
-   ↓
-Chunk 4
-   ↓
-...
-```
-
-The browser displays the response while it is being generated.
-
----
-
-# 💬 Conversation History
-
-Resora currently keeps the conversation history in the browser.
-
-The JavaScript application stores messages in:
-
-```javascript
-let conversationHistory = [];
-```
-
-A conversation is therefore represented approximately as:
-
-```text
-[
-    {
-        "role": "user",
-        "content": "What is NLP?"
-    },
-    {
-        "role": "assistant",
-        "content": "Natural Language Processing..."
-    },
-    {
-        "role": "user",
-        "content": "What are its applications?"
-    }
-]
-```
-
-The conversation is then sent to Flask with subsequent requests.
-
----
-
-# 🔄 Starting a New Chat
-
-Click:
-
-```text
-+ New chat
-```
-
-This clears the current conversation.
-
-The browser-side history is reset:
-
-```javascript
-conversationHistory = [];
-```
-
-The welcome screen is displayed again.
-
----
-
-# ❤️ Health Check
-
-Resora provides a health endpoint:
-
-```text
-/health
 ```
 
 Open:
 
 ```text
-http://127.0.0.1:5000/health
-```
-
-A healthy application should return:
-
-```json
-{
-    "status": "online",
-    "service": "Resora"
-}
-```
-
-This endpoint is useful for deployment platforms and monitoring.
-
----
-
-# 🧪 Testing the Application
-
-Before deploying, test the following:
-
-### Basic question
-
-```text
-What is Natural Language Processing?
-```
-
-### Research question
-
-```text
-What are possible research directions in Bangla sentiment analysis?
-```
-
-### Follow-up question
-
-```text
-What datasets can I use for it?
-```
-
-### Methodology question
-
-```text
-Which evaluation metrics should I use?
-```
-
-### Markdown test
-
-Ask:
-
-```text
-Explain transformer architecture with headings and bullet points.
-```
-
-The generated response should display formatted Markdown.
-
----
-
-# 🛑 Stopping the Application
-
-To stop the Flask server:
-
-```text
-Ctrl + C
-```
-
-You can then deactivate the virtual environment:
-
-```powershell
-deactivate
-```
-
-After deactivation, the `(venv)` prefix disappears.
-
----
-
-# 🔁 Running the Project Again Later
-
-Whenever you return to the project:
-
-### 1. Open the project
-
-```powershell
-cd E:\Resora-LLM-Chatbot
-```
-
-### 2. Activate the virtual environment
-
-```powershell
-venv\Scripts\Activate.ps1
-```
-
-### 3. Run the application
-
-```powershell
-python app.py
-```
-
-### 4. Open the application
-
-```text
 http://127.0.0.1:5000
 ```
 
 ---
 
-# 🆕 Setting Up the Project on Another Computer
+# 📄 Using Document RAG
 
-If you clone Resora on another computer, you do **not** need to copy the existing `venv/` folder.
+### Step 1
 
-Instead:
+Open Resora.
 
-```powershell
-git clone https://github.com/YOUR_USERNAME/Resora-LLM-Chatbot.git
+### Step 2
+
+Upload one of the supported document formats:
+
+```text
+PDF
+DOCX
+TXT
+MD
 ```
 
-Enter the directory:
+### Step 3
 
-```powershell
-cd Resora-LLM-Chatbot
+Resora processes the document:
+
+```text
+Upload
+ ↓
+Extract
+ ↓
+Chunk
+ ↓
+Embed
+ ↓
+Store
 ```
 
-Create a new environment:
+### Step 4
 
-```powershell
-python -m venv venv
-```
-
-Activate it:
-
-```powershell
-venv\Scripts\Activate.ps1
-```
-
-Install dependencies:
-
-```powershell
-pip install -r requirements.txt
-```
-
-Create `.env`:
-
-```powershell
-copy .env.example .env
-```
-
-Then edit `.env`:
-
-```env
-GROQ_API_KEY=your_actual_groq_api_key
-```
-
-Finally:
-
-```powershell
-python app.py
-```
-
----
-
-# 📦 Dependency Management
-
-When adding a new Python package, activate the virtual environment first:
-
-```powershell
-venv\Scripts\Activate.ps1
-```
-
-Install the package:
-
-```powershell
-pip install package-name
-```
-
-Then update:
-
-```powershell
-pip freeze > requirements.txt
-```
-
-For example:
-
-```powershell
-pip install some-package
-```
-
-then:
-
-```powershell
-pip freeze > requirements.txt
-```
-
-Always commit the updated `requirements.txt` so another machine can reproduce the environment.
-
----
-
-# 🐛 Troubleshooting
-
-## Error: `GROQ_API_KEY was not found`
-
-Possible causes:
-
-* `.env` does not exist
-* `.env` is in the wrong directory
-* The variable is named incorrectly
-* The virtual environment is not active
-
-Make sure `.env` contains:
-
-```env
-GROQ_API_KEY=your_actual_groq_api_key
-```
-
-and is located beside `app.py`.
-
----
-
-## Error: `ModuleNotFoundError`
+Ask a question about the document.
 
 Example:
 
 ```text
-ModuleNotFoundError: No module named 'flask'
+Summarize the main findings of this paper.
 ```
 
-Make sure the virtual environment is active:
-
-```powershell
-venv\Scripts\Activate.ps1
-```
-
-Then:
-
-```powershell
-pip install -r requirements.txt
-```
-
----
-
-## Error: `model_not_found`
-
-The project currently uses:
+or:
 
 ```text
-openai/gpt-oss-120b
+What methodology was used in the study?
 ```
 
-Check that this model is available to your Groq account.
-
-You can list available models with:
-
-```python
-models = client.models.list()
-
-for model in models.data:
-    print(model.id)
-```
-
----
-
-## Error: Port already in use
-
-If Flask reports that port `5000` is already being used, stop the other application using that port or change the Flask configuration.
-
-For example:
-
-```python
-app.run(
-    port=5001,
-    debug=True
-)
-```
-
-Then open:
+or:
 
 ```text
-http://127.0.0.1:5001
+What dataset did the authors use?
 ```
+
+Resora performs semantic retrieval before generating the answer.
 
 ---
 
-## Error: `gunicorn: command not found`
+# 🧪 Example RAG Workflow
 
-If deploying to a Linux-based hosting platform and using:
-
-```bash
-gunicorn app:app
-```
-
-make sure Gunicorn exists in `requirements.txt`.
-
-Install it locally:
-
-```powershell
-pip install gunicorn
-```
-
-Then update:
-
-```powershell
-pip freeze > requirements.txt
-```
-
----
-
-## Resora says it cannot connect to the server
-
-First check that Flask is running:
-
-```powershell
-python app.py
-```
-
-Then verify:
+Suppose the user uploads:
 
 ```text
-http://127.0.0.1:5000/health
+bangla_sentiment_analysis.pdf
 ```
 
-If the health endpoint does not respond, the Flask server is not running correctly.
-
----
-
-# 🔒 Security Guidelines
-
-Never commit or expose:
+and asks:
 
 ```text
-.env
-API keys
-Passwords
-Tokens
-Private credentials
+What dataset did the researchers use?
 ```
 
-Never write the API key directly in:
-
-```python
-app.py
-```
-
-Incorrect:
-
-```python
-client = Groq(
-    api_key="gsk_xxxxxxxxx"
-)
-```
-
-Correct:
-
-```python
-api_key = os.getenv("GROQ_API_KEY")
-
-client = Groq(
-    api_key=api_key
-)
-```
-
-The `.env` file should remain outside GitHub.
-
----
-
-# 🌐 Current Deployment
-
-The original version of Resora can be run locally using Flask.
-
-For deployment, the application can be hosted using a platform capable of running the Flask backend.
-
-The project should keep API credentials in the hosting platform's environment-variable configuration rather than inside the source code.
-
----
-
-# 🧠 Current LLM Configuration
+Resora performs:
 
 ```text
-Provider:
-Groq
+bangla_sentiment_analysis.pdf
+          ↓
+     Text Extraction
+          ↓
+        Chunking
+          ↓
+   Gemini Embeddings
+          ↓
+    Document Vectors
+          ↓
+ User Question Embedding
+          ↓
+   Similarity Search
+          ↓
+  Top Relevant Chunks
+          ↓
+ Retrieved Context + Question
+          ↓
+       Groq LLM
+          ↓
+    Final Answer
+```
 
-Model:
-openai/gpt-oss-120b
+The LLM therefore receives relevant information retrieved from the uploaded document rather than the entire document.
 
-Framework:
+---
+
+# 🩺 RAG Failure Handling
+
+RAG errors are intentionally isolated from normal chat.
+
+For example, if the Gemini embedding service is unavailable:
+
+```text
+Document RAG
+     ↓
+Embedding Error
+     ↓
+Handled Gracefully
+```
+
+while normal Groq chat can continue operating.
+
+This prevents an embedding/API problem from unnecessarily taking down the complete chatbot.
+
+---
+
+# ☁️ Deployment
+
+Resora is deployed as a Flask application on **Render**.
+
+The deployment uses environment variables for API credentials:
+
+```text
+GROQ_API_KEY
+GEMINI_API_KEY
+```
+
+The application does not require a large local embedding model to be downloaded during startup.
+
+This keeps the deployed RAG architecture lightweight:
+
+```text
 Flask
-
-Protocol:
-HTTP + Server-Sent Events (SSE)
-
-Streaming:
-Enabled
-
-Conversation History:
-Browser-side
-
-Database:
-None
+ + 
+Gemini Embeddings API
+ +
+NumPy retrieval
+ +
+Groq LLM
 ```
+
+rather than loading a large local Transformer/PyTorch embedding model into the web service.
+
+---
+
+# 🧠 Why This Architecture?
+
+A key design decision in Resora was separating **embedding generation** from **LLM generation**.
+
+```text
+Gemini
+   │
+   └── Embeddings
+
+Groq
+   │
+   └── Text Generation
+```
+
+This provides several practical advantages:
+
+* Avoids shipping a large local embedding model
+* Reduces application memory requirements
+* Simplifies deployment
+* Keeps the RAG retrieval logic under application control
+* Allows the LLM and embedding components to be changed independently
+
+The project therefore demonstrates both **AI API integration** and **RAG pipeline engineering**, rather than only sending prompts to an LLM.
+
+---
+
+# 📊 Current RAG Configuration
+
+```text
+Embedding model:
+gemini-embedding-001
+
+Embedding output:
+768 dimensions
+
+Chunk size:
+900 characters
+
+Chunk overlap:
+150 characters
+
+Top-K retrieval:
+4 chunks
+
+Minimum similarity:
+0.20
+
+Vector storage:
+In-memory NumPy matrix
+
+Document limit:
+15 MB
+```
+
+---
+
+# 🎯 Engineering Concepts Demonstrated
+
+Resora demonstrates practical implementation of:
+
+### Generative AI
+
+* Large Language Models
+* Prompt Engineering
+* LLM API integration
+* Streaming generation
+
+### RAG / Retrieval
+
+* Document ingestion
+* Text extraction
+* Text chunking
+* Semantic embeddings
+* Query embeddings
+* Vector representation
+* Cosine similarity
+* Top-K retrieval
+* Context grounding
+
+### Software Engineering
+
+* Flask backend development
+* REST-style endpoints
+* Server-Sent Events
+* Environment-based configuration
+* Error handling
+* Modular RAG architecture
+* Session-scoped in-memory storage
+
+### Deployment
+
+* Cloud deployment
+* Environment variables
+* Lightweight AI architecture
+* Production-oriented Flask serving
+
+---
+
+# 🔬 Research-Oriented Behavior
+
+Resora's system prompt is designed specifically for undergraduate research assistance.
+
+It can help users:
+
+* Understand research concepts
+* Explore research topics
+* Develop research questions
+* Discuss methodologies
+* Explore datasets
+* Compare ML/NLP approaches
+* Identify potential research directions
+* Understand challenges and limitations
+* Generate useful research keywords
+
+The system is also instructed not to fabricate research papers, authors, datasets, statistics, or experimental findings.
+
+Generated academic information should still be verified against reliable sources.
 
 ---
 
 # ⚠️ Limitations
 
-The current version has several limitations.
+The current implementation is intentionally lightweight and portfolio-oriented.
 
-### No Persistent Conversation Storage
+### In-Memory Vector Store
 
-Conversation history is stored in browser memory and is lost when the page is refreshed or the session is cleared.
+Documents are stored in server memory for the active session.
 
-### No Research-Paper Retrieval
+Therefore:
 
-Resora does not automatically search academic databases.
+* Data is not permanently persisted
+* Restarting the server clears the vector store
+* Multiple server processes would not share the same store
 
-Generated references should therefore be independently verified.
+For larger deployments, a persistent vector database can replace the current `VectorStore` implementation.
 
-### LLM Hallucination
+### No Authentication
 
-Like other generative AI systems, Resora may produce incorrect information.
+The current version does not provide multi-user authentication or account management.
 
-Important academic claims should be checked against reliable sources and original research papers.
+### No Persistent Chat Database
 
-### API Dependency
+Conversation history is maintained for the active browser session rather than permanently stored in a database.
 
-The application requires a valid Groq API key and access to the selected model.
+### Document Extraction Limitations
+
+Image-only or scanned PDFs may not contain extractable text and may require OCR.
+
+### LLM Limitations
+
+Generated responses can still contain incorrect information. Important academic claims should be independently verified.
 
 ---
 
 # 🔮 Future Improvements
 
-Possible future versions of Resora may include:
+Potential production-scale extensions include:
 
-* Persistent chat history
-* Firebase authentication
-* Firebase Firestore
-* Research-paper search
-* Retrieval-Augmented Generation (RAG)
-* PDF upload and analysis
-* Academic source retrieval
-* Citation support
-* Research-specific modes
-* Saved research sessions
-* Conversation management
-* Voice interaction
-* Advanced prompt management
+* Persistent vector database
+* User authentication
+* Per-user document collections
+* Persistent conversation history
+* Source citations for retrieved chunks
+* Hybrid keyword + semantic search
+* Retrieval reranking
+* OCR for scanned documents
+* Background document processing
+* RAG evaluation metrics
+* Retrieval quality evaluation
+* Response faithfulness evaluation
+* Monitoring and observability
+* Research-paper retrieval from academic sources
 
 ---
 
-# 🎓 Academic Purpose
+# 🧪 Example Questions
 
-This project was developed for:
+### General AI
+
+```text
+What is Retrieval-Augmented Generation?
+```
+
+### NLP
+
+```text
+What are the major challenges in Bangla NLP?
+```
+
+### Machine Learning
+
+```text
+How should I evaluate a sentiment classification model?
+```
+
+### Research Methodology
+
+```text
+How can I design an experiment for Bangla sentiment analysis?
+```
+
+### Document RAG
+
+Upload a research paper and ask:
+
+```text
+What methodology did the authors use?
+```
+
+```text
+What dataset was used?
+```
+
+```text
+Summarize the experimental results.
+```
+
+```text
+What limitations did the researchers identify?
+```
+
+---
+
+# 📚 Academic Context
+
+Resora was developed as part of:
 
 ```text
 Course:
@@ -1139,53 +1150,69 @@ Green University of Bangladesh
 
 Semester:
 Summer 2026
-
-Project:
-Simple Research Chatbot using an LLM
 ```
 
-The project demonstrates practical use of:
-
-* Natural Language Processing
-* Large Language Models
-* API integration
-* Prompt engineering
-* Web application development
-* Streaming generation
-* Conversational AI
-* Secure environment-variable management
+The project originally started as a simple research chatbot and was extended with a document-grounded RAG architecture.
 
 ---
 
 # 👨‍💻 Developer
 
-**Irfan Ferdous Siam**
+## Irfan Ferdous Siam
 
 Computer Science & Engineering
 Green University of Bangladesh
 
-### Links
+**AI/ML • NLP • Generative AI • AI Automation**
+
+### Connect
 
 * GitHub: https://github.com/IrfanTech-X
+* LinkedIn: https://linkedin.com/in/irfan-ferdous-siam
 * Portfolio: https://irfanferdous.netlify.app/
-* LinkedIn: Add your current LinkedIn profile URL here
 
 ---
 
-# 📄 License
+# ⭐ Project Highlights
 
-This project was created for educational and academic purposes.
+Resora demonstrates an end-to-end AI application rather than a basic chatbot wrapper.
 
-You may modify and extend the project for learning and research.
+```text
+                   RESORA
+                      │
+        ┌─────────────┴─────────────┐
+        │                           │
+   General Chat                 Document RAG
+        │                           │
+        ▼                           ▼
+    Groq LLM                 Text Extraction
+                                    │
+                                    ▼
+                                Chunking
+                                    │
+                                    ▼
+                           Gemini Embeddings
+                                    │
+                                    ▼
+                             Vector Retrieval
+                                    │
+                                    ▼
+                           Retrieved Context
+                                    │
+                    ┌───────────────┘
+                    ▼
+                 Groq LLM
+                    │
+                    ▼
+              Grounded Answer
+```
+
+### The project demonstrates:
+
+**LLM integration + RAG + semantic retrieval + embeddings + document processing + streaming + Flask + API integration + cloud deployment**
 
 ---
 
-# ⭐ Acknowledgements
+## 📄 License
 
-* Groq API
-* OpenAI GPT-OSS-120B
-* Flask
-* Marked.js
-* DOMPurify
-* Python
-* Green University of Bangladesh — CSE 414
+This project was developed for educational, academic, and portfolio purposes.
