@@ -364,11 +364,42 @@
             <div class="topbar-actions">
 
 
-                <div class="model-badge">
+                <!-- Groq model picker (new feature) -->
 
-                    GPT-OSS-120B
+                <select
+                    id="model-select"
+                    class="model-select"
+                    aria-label="Choose Groq model"
+                    title="Choose Groq model"
+                >
 
-                </div>
+                    <option value="">
+                        Loading models...
+                    </option>
+
+                </select>
+
+
+                <!-- Document upload for RAG (new feature) -->
+
+                <input
+                    id="document-input"
+                    type="file"
+                    accept=".pdf,.docx,.txt,.md"
+                    hidden
+                >
+
+                <button
+                    id="attach-document"
+                    class="attach-button"
+                    type="button"
+                    title="Upload a document for RAG"
+                    aria-label="Upload a document"
+                >
+
+                    📎 Document
+
+                </button>
 
 
                 <button
@@ -384,6 +415,43 @@
             </div>
 
         </header>
+
+
+        <!-- =================================================
+             ACTIVE DOCUMENT BAR (new feature - RAG)
+             ================================================= -->
+
+        <div
+            id="document-bar"
+            class="document-bar"
+            hidden
+        >
+
+            <span class="document-bar-icon">
+                📄
+            </span>
+
+            <span
+                id="document-name"
+                class="document-bar-name"
+            ></span>
+
+            <span
+                id="document-status"
+                class="document-bar-status"
+            ></span>
+
+            <button
+                id="remove-document"
+                class="document-bar-remove"
+                type="button"
+                title="Remove document"
+                aria-label="Remove document"
+            >
+                ✕
+            </button>
+
+        </div>
 
 
         <!-- =================================================

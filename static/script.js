@@ -35,6 +35,31 @@ const sidebar =
 const sidebarOverlay =
     document.getElementById("sidebar-overlay");
 
+// New feature: model picker
+
+const modelSelect =
+    document.getElementById("model-select");
+
+// New feature: document upload (RAG)
+
+const documentInput =
+    document.getElementById("document-input");
+
+const attachDocumentButton =
+    document.getElementById("attach-document");
+
+const documentBar =
+    document.getElementById("document-bar");
+
+const documentNameLabel =
+    document.getElementById("document-name");
+
+const documentStatusLabel =
+    document.getElementById("document-status");
+
+const removeDocumentButton =
+    document.getElementById("remove-document");
+
 
 const MAX_LENGTH = 4000;
 
@@ -44,6 +69,106 @@ const MAX_LENGTH = 4000;
 // =========================================================
 
 let conversationHistory = [];
+
+
+// =========================================================
+// SESSION ID (new feature - RAG)
+// =========================================================
+// A per-browser-tab id so the server can keep this tab's uploaded
+// document separate from every other visitor's. It never needs to
+// be predictable or persisted -- just unique for this page load.
+
+const sessionId =
+    (crypto.randomUUID && crypto.randomUUID()) ||
+    `resora-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+
+// =========================================================
+// SELECTED MODEL (new feature)
+// =========================================================
+
+let selectedModel = "";
+
+
+let hasUploadedDocument = false;
+
+
+// =========================================================
+// LOAD AVAILABLE GROQ MODELS (new feature)
+// =========================================================
+
+async function loadModels() {
+
+    try {
+
+        const response =
+            await fetch("/models");
+
+        if (!response.ok) {
+            throw new Error("Failed to load models.");
+        }
+
+        const data =
+            await response.json();
+
+        const models =
+            Array.isArray(data.models) ?
+                data.models :
+                [];
+
+        modelSelect.innerHTML = "";
+
+        if (models.length === 0) {
+
+            const option =
+                document.createElement("option");
+
+            option.value = data.default || "";
+
+            option.textContent = data.default || "Default model";
+
+            modelSelect.appendChild(option);
+
+        } else {
+
+            models.forEach((model) => {
+
+                const option =
+                    document.createElement("option");
+
+                option.value = model.id;
+
+                option.textContent = model.id;
+
+                modelSelect.appendChild(option);
+            });
+        }
+
+        // Preselect the server's default model so behavior is
+        // identical to before unless the user changes it.
+
+        selectedModel = data.default || models[0]?.id || "";
+
+        modelSelect.value = selectedModel;
+
+    } catch (error) {
+
+        console.error("Could not load Groq models:", error);
+
+        modelSelect.innerHTML =
+            '<option value="">Default model</option>';
+
+        selectedModel = "";
+    }
+}
+
+
+modelSelect.addEventListener(
+    "change",
+    () => {
+        selectedModel = modelSelect.value;
+    }
+);
 
 
 // =========================================================
@@ -428,7 +553,13 @@ async function sendMessage(
                                 .slice(
                                     0,
                                     -1
-                                )
+                                ),
+
+                        model:
+                            selectedModel,
+
+                        session_id:
+                            sessionId
 
                     })
 
@@ -963,9 +1094,179 @@ document
 
 
 // =========================================================
+// DOCUMENT UPLOAD (new feature - RAG)
+// =========================================================
+
+function setDocumentStatus(text) {
+
+    documentStatusLabel.textContent =
+        text || "";
+}
+
+
+function showDocumentBar(filename, status) {
+
+    documentNameLabel.textContent =
+        filename;
+
+    setDocumentStatus(status);
+
+    documentBar.hidden = false;
+
+    attachDocumentButton.classList.add(
+        "has-document"
+    );
+
+    hasUploadedDocument = true;
+}
+
+
+function hideDocumentBar() {
+
+    documentBar.hidden = true;
+
+    documentNameLabel.textContent = "";
+
+    setDocumentStatus("");
+
+    attachDocumentButton.classList.remove(
+        "has-document"
+    );
+
+    hasUploadedDocument = false;
+}
+
+
+attachDocumentButton.addEventListener(
+    "click",
+    () => {
+        documentInput.click();
+    }
+);
+
+
+documentInput.addEventListener(
+    "change",
+    async () => {
+
+        const file =
+            documentInput.files[0];
+
+        if (!file) {
+            return;
+        }
+
+        showDocumentBar(
+            file.name,
+            "Uploading and indexing..."
+        );
+
+        attachDocumentButton.disabled = true;
+
+        try {
+
+            const formData =
+                new FormData();
+
+            formData.append("file", file);
+
+            formData.append("session_id", sessionId);
+
+            const response =
+                await fetch(
+                    "/upload",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok || data.error) {
+
+                throw new Error(
+                    data.error ||
+                    "Could not process this document."
+                );
+            }
+
+            showDocumentBar(
+                data.filename,
+                `${data.chunks} chunk${data.chunks === 1 ? "" : "s"} indexed · used to answer your questions`
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Document upload error:",
+                error
+            );
+
+            hideDocumentBar();
+
+            const errorElement =
+                createAssistantMessage();
+
+            errorElement.textContent =
+                error.message ||
+                "Something went wrong while uploading the document.";
+
+            hideWelcome();
+
+            scrollToBottom();
+
+        } finally {
+
+            attachDocumentButton.disabled = false;
+
+            documentInput.value = "";
+        }
+    }
+);
+
+
+removeDocumentButton.addEventListener(
+    "click",
+    async () => {
+
+        try {
+
+            await fetch(
+                "/documents/clear",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId
+                    })
+                }
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Clear document error:",
+                error
+            );
+
+        } finally {
+
+            hideDocumentBar();
+        }
+    }
+);
+
+
+// =========================================================
 // INITIALIZE
 // =========================================================
 
 updateCharacterCount();
+
+loadModels();
 
 messageInput.focus();
