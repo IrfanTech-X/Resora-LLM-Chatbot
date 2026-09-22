@@ -2,6 +2,15 @@ import json
 import os
 
 from dotenv import load_dotenv
+
+# =========================================================
+# Environment Configuration
+# =========================================================
+
+# Load .env for local development.
+# On Render, environment variables are provided by Render.
+load_dotenv()
+
 from flask import (
     Flask,
     Response,
@@ -16,20 +25,6 @@ import rag
 
 
 # =========================================================
-# Environment Configuration
-# =========================================================
-
-load_dotenv()
-
-api_key = os.getenv("GROQ_API_KEY")
-
-if not api_key:
-    raise ValueError(
-        "GROQ_API_KEY was not found in the .env file."
-    )
-
-
-# =========================================================
 # Flask Application
 # =========================================================
 
@@ -40,25 +35,26 @@ app = Flask(__name__)
 # Groq Client
 # =========================================================
 
+api_key = os.getenv("GROQ_API_KEY")
+
+if not api_key:
+    raise ValueError(
+        "GROQ_API_KEY is not configured. "
+        "Please add the GROQ_API_KEY environment variable."
+    )
+
 client = Groq(api_key=api_key)
 
 
 # =========================================================
-# RAG Startup Check (new feature)
+# RAG Startup Check
 # =========================================================
-# Embeddings now come from Google's free Gemini Embedding API
-# rather than a local model, so there's no heavy model to preload
-# -- this is just a friendly startup warning if the key is missing,
-# so it's obvious why document upload doesn't work instead of it
-# failing silently later. Chat itself is unaffected either way.
 
 if not os.getenv("GEMINI_API_KEY"):
-
     print(
-        "Warning: GEMINI_API_KEY is not set. Document upload / RAG "
-        "will not work until you add a free key from "
-        "https://aistudio.google.com/apikey to your .env file. "
-        "Chat still works normally without it."
+        "Warning: GEMINI_API_KEY is not configured. "
+        "Document upload and RAG features will be unavailable. "
+        "Chat will continue to work normally."
     )
 
 
